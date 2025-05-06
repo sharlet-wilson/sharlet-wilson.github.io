@@ -95,7 +95,7 @@
         <th>Action</th>
         </tr>`;
         expenses.forEach((expense, index) => {
-            expensesTable.innerHTML += `<tr><td>${expense.whoPaid}</td><td>$${expense.amount.toFixed(2)}</td><td>${expense.reason}</td><td>${expense.splitBetween.join(', ')}</td><td><button onclick="removeExpense(${index})">Remove</button></td></tr>`;
+            expensesTable.innerHTML += `<tr><td>${expense.whoPaid}</td><td>₹${expense.amount.toFixed(2)}</td><td>${expense.reason}</td><td>${expense.splitBetween.join(', ')}</td><td><button onclick="removeExpense(${index})">Remove</button></td></tr>`;
         });
     }
 
@@ -137,7 +137,7 @@
                 if (balances[debtor] < 0 && balances[creditor] > 0) {
                     const amount = Math.min(-balances[debtor], balances[creditor]);
                     if (amount > 0) {
-                        output += `<tr><td>${debtor}</td><td>${creditor}</td><td>$${amount.toFixed(2)}</td></tr>`;
+                        output += `<tr><td>${debtor}</td><td>${creditor}</td><td>₹${amount.toFixed(2)}</td></tr>`;
                         balances[debtor] += amount;
                         balances[creditor] -= amount;
                     }
