@@ -67,7 +67,7 @@
         function addUser() { const username = document.getElementById('username').value; if (username && !users.includes(username)) { users.push(username); document.getElementById('users').innerHTML += `<li>${username}</li>`; document.getElementById('username').value = ''; updateSelectOptions(); } }
         function addExpense() {
             const whoPaid = document.getElementById('whoPaid').value; const amount = parseFloat(document.getElementById('amount').value); const reason = document.getElementById('reason').value; const splitBetween = Array.from(document.getElementById('splitBetween').selectedOptions).map(option => option.value);
-            if (whoPaid && !isNaN(amount) && reason && splitBetween.length > 0) { expenses.push({ whoPaid, amount, reason, splitBetween }); document.getElementById('expenses').innerHTML += `<li>${whoPaid} paid ₹{amount} for ${reason}, split between ${splitBetween.join(', ')}</li>`; document.getElementById('amount').value = ''; document.getElementById('reason').value = ''; }
+            if (whoPaid && !isNaN(amount) && reason && splitBetween.length > 0) { expenses.push({ whoPaid, amount, reason, splitBetween }); document.getElementById('expenses').innerHTML += `<li>${whoPaid} paid ₹${amount} for ${reason}, split between ${splitBetween.join(', ')}</li>`; document.getElementById('amount').value = ''; document.getElementById('reason').value = ''; }
         }
         function updateSelectOptions() { const options = users.map(user => `<option value="${user}">${user}</option>`).join(''); document.getElementById('whoPaid').innerHTML = options; document.getElementById('splitBetween').innerHTML = options; }
         function calculateSettlements() {
@@ -75,7 +75,7 @@
             expenses.forEach(expense => { const { whoPaid, amount, splitBetween } = expense; const splitAmount = amount / splitBetween.length; splitBetween.forEach(person => { if (person !== whoPaid) { balances[person] -= splitAmount; balances[whoPaid] += splitAmount; } }); });
             const debtors = Object.keys(balances).filter(user => balances[user] < 0); const creditors = Object.keys(balances).filter(user => balances[user] > 0);
             let output = '<ul>';
-            debtors.forEach(debtor => { creditors.forEach(creditor => { if (balances[debtor] < 0 && balances[creditor] > 0) { const amount = Math.min(-balances[debtor], balances[creditor]); if (amount > 0) { output += `<li>${debtor} owes ${creditor} ₹{amount.toFixed(2)}</li>`; balances[debtor] += amount; balances[creditor] -= amount; } } }); });
+            debtors.forEach(debtor => { creditors.forEach(creditor => { if (balances[debtor] < 0 && balances[creditor] > 0) { const amount = Math.min(-balances[debtor], balances[creditor]); if (amount > 0) { output += `<li>${debtor} owes ${creditor} ₹${amount.toFixed(2)}</li>`; balances[debtor] += amount; balances[creditor] -= amount; } } }); });
             output += '</ul>'; document.getElementById('settlements').innerHTML = output;
         }</script>
 </head>
