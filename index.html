@@ -4,185 +4,293 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Expense Splitter</title>
+
 <style>
-    body {
-        font-family: Arial, sans-serif;
-        background-color: #f4f4f9;
-        margin: 0;
-        padding: 10px;
-    }
-    h1, h2 {
-        color: #333;
-    }
-    div {
-        background-color: white;
-        box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        padding: 20px;
-        margin-bottom: 20px;
-        border-radius: 8px;
-    }
-    input, button, select {
-        padding: 10px;
-        margin-top: 5px;
-        margin-bottom: 10px;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-        width: calc(100% - 22px);
-    }
-    button {
-        background-color: #5cb85c;
-        color: white;
-        border: none;
-        cursor: pointer;
-    }
-    button:hover {
-        background-color: #4cae4c;
-    }
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 10px;
-    }
-    th, td {
-        text-align: left;
-        padding: 8px;
-        border-bottom: 1px solid #eee;
-    }
-    th {
-        background-color: #f0f0f0;
-    }
-    label {
-        display: block;
-        margin-top: 20px;
-    }
+body {
+    font-family: Arial, sans-serif;
+    background:#f4f4f9;
+    padding:10px;
+}
+div {
+    background:white;
+    padding:20px;
+    margin-bottom:20px;
+    border-radius:8px;
+    box-shadow:0 0 10px rgba(0,0,0,0.1);
+}
+input, select, button {
+    width:100%;
+    padding:10px;
+    margin-top:5px;
+    margin-bottom:10px;
+}
+button {
+    background:#5cb85c;
+    color:white;
+    border:none;
+    cursor:pointer;
+}
+button:hover { background:#4cae4c; }
+table {
+    width:100%;
+    border-collapse:collapse;
+}
+th, td {
+    padding:8px;
+    border-bottom:1px solid #ddd;
+}
+.split-row {
+    display:flex;
+    align-items:center;
+    gap:10px;
+}
+.ratioInput {
+    width:70px;
+}
 </style>
-<script>
-    let users = [];
-    let expenses = [];
-
-    function addUser() {
-        const username = document.getElementById('username').value;
-        if (username && !users.includes(username)) {
-            users.push(username);
-            const usersList = document.getElementById('users-table');
-            usersList.innerHTML += `<tr><td>${username}</td></tr>`;
-            document.getElementById('username').value = '';
-            updateSelectOptions();
-        }
-    }
-
-    function addExpense() {
-        const whoPaid = document.getElementById('whoPaid').value;
-        const amount = parseFloat(document.getElementById('amount').value);
-        const reason = document.getElementById('reason').value;
-        const splitBetween = Array.from(document.getElementById('splitBetween').selectedOptions).map(option => option.value);
-
-        if (whoPaid && !isNaN(amount) && reason && splitBetween.length > 0) {
-            expenses.push({ whoPaid, amount, reason, splitBetween });
-            updateExpensesTable();
-            document.getElementById('amount').value = '';
-            document.getElementById('reason').value = '';
-        }
-    }
-
-    function updateExpensesTable() {
-        const expensesTable = document.getElementById('expenses-table');
-        expensesTable.innerHTML = `<tr>
-        <th>Who Paid</th>
-        <th>Amount</th>
-        <th>Reason</th>
-        <th>Split Between</th>
-        <th>Action</th>
-        </tr>`;
-        expenses.forEach((expense, index) => {
-            expensesTable.innerHTML += `<tr><td>${expense.whoPaid}</td><td>₹${expense.amount.toFixed(2)}</td><td>${expense.reason}</td><td>${expense.splitBetween.join(', ')}</td><td><button onclick="removeExpense(${index})">Remove</button></td></tr>`;
-        });
-    }
-
-    function removeExpense(index) {
-        expenses.splice(index, 1);
-        updateExpensesTable();
-    }
-
-    function updateSelectOptions() {
-        const options = users.map(user => `<option value="${user}">${user}</option>`).join('');
-        document.getElementById('whoPaid').innerHTML = options;
-        document.getElementById('splitBetween').innerHTML = options;
-    }
-
-    function calculateSettlements() {
-        const balances = users.reduce((acc, user) => ({
-            ...acc,
-            [user]: 0
-        }), {});
-
-        expenses.forEach(expense => {
-            const { whoPaid, amount, splitBetween } = expense;
-            const splitAmount = amount / splitBetween.length;
-            splitBetween.forEach(person => {
-                if (person !== whoPaid) {
-                    balances[person] -= splitAmount;
-                    balances[whoPaid] += splitAmount;
-                }
-            });
-        });
-
-        const debtors = Object.keys(balances).filter(user => balances[user] < 0);
-        const creditors = Object.keys(balances).filter(user => balances[user] > 0);
-
-        let output = `<table><tr><th>Debtor</th><th>Creditor</th><th>Amount</th></tr>`;
-
-        debtors.forEach(debtor => {
-            creditors.forEach(creditor => {
-                if (balances[debtor] < 0 && balances[creditor] > 0) {
-                    const amount = Math.min(-balances[debtor], balances[creditor]);
-                    if (amount > 0) {
-                        output += `<tr><td>${debtor}</td><td>${creditor}</td><td>₹${amount.toFixed(2)}</td></tr>`;
-                        balances[debtor] += amount;
-                        balances[creditor] -= amount;
-                    }
-                }
-            });
-        });
-
-        output += '</table>';
-        document.getElementById('settlements').innerHTML = output;
-    }
-</script>
 </head>
+
 <body>
+
 <h1>Expense Splitter</h1>
+
+<!-- USERS -->
 <div>
-    <h2>Add User</h2>
-    <input type="text" id="username" placeholder="Enter user name">
-    <button onclick="addUser()">Add User</button>
-    <table id="users-table"><tr><th>User</th></tr></table>
+<h2>Add User</h2>
+<input id="username" placeholder="Enter user name">
+<button id="addUserBtn">Add User</button>
+
+<table id="users-table">
+<tr><th>User</th></tr>
+</table>
 </div>
+
+<!-- EXPENSE -->
 <div>
-    <h2>Add Expense</h2>
-    <label for="whoPaid">Who paid?</label>
-    <select id="whoPaid"></select>
-    <label for="amount">Amount:</label>
-    <input type="number" id="amount" min="0" step="0.01" placeholder="Amount paid">
-    <label for="reason">Reason:</label>
-    <input type="text" id="reason" placeholder="Expense reason">
-    <label for="splitBetween">Split between:</label>
-    <select id="splitBetween" multiple></select>
-    <button onclick="addExpense()">Add Expense</button>
-    <table id="expenses-table">
+<h2>Add Expense</h2>
+
+<label>Who paid?</label>
+<select id="whoPaid"></select>
+
+<label>Amount</label>
+<input id="amount" type="number" step="0.01">
+
+<label>Reason</label>
+<input id="reason">
+
+<label>Split Between (with ratios)</label>
+<div id="splitBetweenContainer"></div>
+
+<button id="addExpenseBtn">Add Expense</button>
+
+<table id="expenses-table">
+<tr>
+<th>Who Paid</th>
+<th>Amount</th>
+<th>Reason</th>
+<th>Split Between</th>
+<th>Action</th>
+</tr>
+</table>
+</div>
+
+<!-- SETTLEMENT -->
+<div>
+<h2>Settlements</h2>
+<button id="calculateBtn">Calculate</button>
+<div id="settlements"></div>
+</div>
+
+<script>
+
+let users = [];
+let expenses = [];
+
+/* -------- DOM REFERENCES -------- */
+
+const usernameInput = document.getElementById("username");
+const usersTable = document.getElementById("users-table");
+const whoPaidSelect = document.getElementById("whoPaid");
+const amountInput = document.getElementById("amount");
+const reasonInput = document.getElementById("reason");
+const splitBetweenContainer = document.getElementById("splitBetweenContainer");
+const expensesTable = document.getElementById("expenses-table");
+const settlementsDiv = document.getElementById("settlements");
+
+document.getElementById("addUserBtn").addEventListener("click", addUser);
+document.getElementById("addExpenseBtn").addEventListener("click", addExpense);
+document.getElementById("calculateBtn").addEventListener("click", calculateSettlements);
+
+
+/* -------- USERS -------- */
+
+function addUser(){
+    const name = usernameInput.value.trim();
+    if(!name || users.includes(name)) return;
+
+    users.push(name);
+    usersTable.innerHTML += `<tr><td>${name}</td></tr>`;
+    usernameInput.value="";
+    updateSelectOptions();
+}
+
+function updateSelectOptions(){
+    whoPaidSelect.innerHTML =
+        users.map(u=>`<option value="${u}">${u}</option>`).join("");
+
+    splitBetweenContainer.innerHTML =
+        users.map(u=>`
+        <div class="split-row">
+          <input type="checkbox" class="splitUser" value="${u}">
+          <span>${u}</span>
+          <input class="ratioInput" value="1">
+        </div>
+        `).join("");
+
+    document.querySelectorAll(".splitUser").forEach(cb=>{
+        cb.addEventListener("change", function(){
+            autoFillRatio(this);
+        });
+    });
+}
+
+
+/* -------- AUTO FILL RATIO -------- */
+
+function autoFillRatio(checkbox){
+    const ratioField = checkbox.parentElement.querySelector(".ratioInput");
+    ratioField.value = checkbox.checked ? "1" : "";
+}
+
+
+/* -------- FRACTION PARSER -------- */
+
+function parseRatio(val){
+    if(!val) return 1;
+    if(val.includes("/")){
+        const [a,b] = val.split("/").map(Number);
+        if(!isNaN(a) && !isNaN(b) && b!==0) return a/b;
+        return 1;
+    }
+    const n = parseFloat(val);
+    return isNaN(n) ? 1 : n;
+}
+
+
+/* -------- ADD EXPENSE -------- */
+
+function addExpense(){
+
+    const whoPaidVal = whoPaidSelect.value;
+    const amt = parseFloat(amountInput.value);
+    const reasonVal = reasonInput.value;
+
+    const selected = [...document.querySelectorAll(".splitUser:checked")]
+        .map(cb=>{
+            const ratioText =
+              cb.parentElement.querySelector(".ratioInput").value;
+            return {
+                name: cb.value,
+                ratio: parseRatio(ratioText)
+            };
+        });
+
+    if(!whoPaidVal || isNaN(amt) || !reasonVal || selected.length===0) return;
+
+    expenses.push({
+        whoPaid: whoPaidVal,
+        amount: amt,
+        reason: reasonVal,
+        splitBetween: selected
+    });
+
+    amountInput.value="";
+    reasonInput.value="";
+    updateExpensesTable();
+}
+
+
+/* -------- EXPENSE TABLE -------- */
+
+function updateExpensesTable(){
+
+    expensesTable.innerHTML = `
+    <tr>
+    <th>Who Paid</th>
+    <th>Amount</th>
+    <th>Reason</th>
+    <th>Split Between</th>
+    <th>Action</th>
+    </tr>
+    `;
+
+    expenses.forEach((e,i)=>{
+        expensesTable.innerHTML += `
         <tr>
-            <th>Who Paid</th>
-            <th>Amount</th>
-            <th>Reason</th>
-            <th>Split Between</th>
-            <th>Action</th>
-        </tr>
-    </table>
-</div>
-<div>
-    <h2>Settlements</h2>
-    <button onclick="calculateSettlements()">Calculate</button>
-    <div id="settlements"></div>
-</div>
+          <td>${e.whoPaid}</td>
+          <td>₹${e.amount.toFixed(2)}</td>
+          <td>${e.reason}</td>
+          <td>${e.splitBetween.map(p=>`${p.name} (${p.ratio.toFixed(2)})`).join(", ")}</td>
+          <td><button onclick="removeExpense(${i})">Remove</button></td>
+        </tr>`;
+    });
+}
+
+function removeExpense(i){
+    expenses.splice(i,1);
+    updateExpensesTable();
+}
+
+
+/* -------- SETTLEMENT -------- */
+
+function calculateSettlements(){
+
+    const balances = {};
+    users.forEach(u=>balances[u]=0);
+
+    expenses.forEach(e=>{
+        const totalRatio =
+            e.splitBetween.reduce((s,p)=>s+p.ratio,0);
+
+        e.splitBetween.forEach(p=>{
+            const share = e.amount * (p.ratio / totalRatio);
+            if(p.name !== e.whoPaid){
+                balances[p.name] -= share;
+                balances[e.whoPaid] += share;
+            }
+        });
+    });
+
+    const debtors = Object.keys(balances).filter(u=>balances[u]<0);
+    const creditors = Object.keys(balances).filter(u=>balances[u]>0);
+
+    let html = `<table>
+    <tr><th>Debtor</th><th>Creditor</th><th>Amount</th></tr>`;
+
+    debtors.forEach(d=>{
+        creditors.forEach(c=>{
+            if(balances[d]<0 && balances[c]>0){
+                const amt = Math.min(-balances[d], balances[c]);
+                if(amt>0){
+                    html+=`
+                    <tr>
+                      <td>${d}</td>
+                      <td>${c}</td>
+                      <td>₹${amt.toFixed(2)}</td>
+                    </tr>`;
+                    balances[d]+=amt;
+                    balances[c]-=amt;
+                }
+            }
+        });
+    });
+
+    html+="</table>";
+    settlementsDiv.innerHTML = html;
+}
+
+</script>
+
 </body>
 </html>
