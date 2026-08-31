@@ -23,14 +23,37 @@ input, select, button {
     padding:10px;
     margin-top:5px;
     margin-bottom:10px;
+    box-sizing:border-box;
 }
 button {
     background:#5cb85c;
     color:white;
     border:none;
     cursor:pointer;
+    border-radius:4px;
 }
-button:hover { background:#4cae4c; }
+button:hover {
+    background:#4cae4c;
+}
+#clearBtn {
+    background:#d9534f;
+}
+#clearBtn:hover {
+    background:#c9302c;
+}
+#saveBtn {
+    background:#337ab7;
+}
+#saveBtn:hover {
+    background:#286090;
+}
+.action-buttons {
+    display:flex;
+    gap:10px;
+}
+.action-buttons button {
+    flex:1;
+}
 table {
     width:100%;
     border-collapse:collapse;
@@ -44,8 +67,13 @@ th, td {
     align-items:center;
     gap:10px;
 }
+.split-row input[type="checkbox"] {
+    width:auto;
+    margin:0;
+}
 .ratioInput {
     width:70px;
+    margin-left:auto;
 }
 </style>
 </head>
@@ -53,6 +81,22 @@ th, td {
 <body>
 
 <h1>Expense Splitter</h1>
+
+<!-- SAVE / CLEAR -->
+
+<div>
+    <h2>Save</h2>
+
+```
+<div class="action-buttons">
+    <button id="saveBtn">Save</button>
+    <button id="clearBtn">Clear</button>
+</div>
+
+<div id="saveStatus"></div>
+```
+
+</div>
 
 <!-- USERS -->
 <div>
@@ -103,6 +147,8 @@ th, td {
 
 <script>
 
+const STORAGE_KEY = "expenseSplitterData";
+
 let users = [];
 let expenses = [];
 
@@ -116,38 +162,92 @@ const reasonInput = document.getElementById("reason");
 const splitBetweenContainer = document.getElementById("splitBetweenContainer");
 const expensesTable = document.getElementById("expenses-table");
 const settlementsDiv = document.getElementById("settlements");
+const saveStatus = document.getElementById("saveStatus");
 
-document.getElementById("addUserBtn").addEventListener("click", addUser);
-document.getElementById("addExpenseBtn").addEventListener("click", addExpense);
-document.getElementById("calculateBtn").addEventListener("click", calculateSettlements);
+document.getElementById("addUserBtn")
+    .addEventListener("click", addUser);
 
+document.getElementById("addExpenseBtn")
+    .addEventListener("click", addExpense);
+
+document.getElementById("calculateBtn")
+    .addEventListener("click", calculateSettlements);
+
+document.getElementById("saveBtn")
+    .addEventListener("click", saveData);
+
+document.getElementById("clearBtn")
+    .addEventListener("click", clearData);
 
 /* -------- USERS -------- */
 
 function addUser(){
+
     const name = usernameInput.value.trim();
+
     if(!name || users.includes(name)) return;
 
     users.push(name);
-    usersTable.innerHTML += `<tr><td>${name}</td></tr>`;
-    usernameInput.value="";
+
+    usernameInput.value = "";
+
+    updateUsersTable();
     updateSelectOptions();
 }
 
+
+function updateUsersTable(){
+
+    usersTable.innerHTML = `
+        <tr>
+            <th>User</th>
+        </tr>
+    `;
+
+    users.forEach(user => {
+        usersTable.innerHTML += `
+            <tr>
+                <td>${escapeHtml(user)}</td>
+            </tr>
+        `;
+    });
+}
+
+
+/* -------- SELECT OPTIONS -------- */
+
 function updateSelectOptions(){
+
+    const previousWhoPaid = whoPaidSelect.value;
+
     whoPaidSelect.innerHTML =
-        users.map(u=>`<option value="${u}">${u}</option>`).join("");
+        users.map(u =>
+            `<option value="${escapeHtml(u)}">${escapeHtml(u)}</option>`
+        ).join("");
+
+    if(users.includes(previousWhoPaid)){
+        whoPaidSelect.value = previousWhoPaid;
+    }
 
     splitBetweenContainer.innerHTML =
-        users.map(u=>`
-        <div class="split-row">
-          <input type="checkbox" class="splitUser" value="${u}">
-          <span>${u}</span>
-          <input class="ratioInput" value="1">
-        </div>
+        users.map(u => `
+            <div class="split-row">
+                <input
+                    type="checkbox"
+                    class="splitUser"
+                    value="${escapeHtml(u)}"
+                >
+
+                <span>${escapeHtml(u)}</span>
+
+                <input
+                    class="ratioInput"
+                    value="1"
+                >
+            </div>
         `).join("");
 
-    document.querySelectorAll(".splitUser").forEach(cb=>{
+    document.querySelectorAll(".splitUser").forEach(cb => {
         cb.addEventListener("change", function(){
             autoFillRatio(this);
         });
@@ -158,7 +258,10 @@ function updateSelectOptions(){
 /* -------- AUTO FILL RATIO -------- */
 
 function autoFillRatio(checkbox){
-    const ratioField = checkbox.parentElement.querySelector(".ratioInput");
+
+    const ratioField =
+        checkbox.parentElement.querySelector(".ratioInput");
+
     ratioField.value = checkbox.checked ? "1" : "";
 }
 
@@ -166,13 +269,22 @@ function autoFillRatio(checkbox){
 /* -------- FRACTION PARSER -------- */
 
 function parseRatio(val){
+
     if(!val) return 1;
+
     if(val.includes("/")){
+
         const [a,b] = val.split("/").map(Number);
-        if(!isNaN(a) && !isNaN(b) && b!==0) return a/b;
+
+        if(!isNaN(a) && !isNaN(b) && b !== 0){
+            return a / b;
+        }
+
         return 1;
     }
+
     const n = parseFloat(val);
+
     return isNaN(n) ? 1 : n;
 }
 
@@ -183,19 +295,29 @@ function addExpense(){
 
     const whoPaidVal = whoPaidSelect.value;
     const amt = parseFloat(amountInput.value);
-    const reasonVal = reasonInput.value;
+    const reasonVal = reasonInput.value.trim();
 
-    const selected = [...document.querySelectorAll(".splitUser:checked")]
-        .map(cb=>{
+    const selected =
+        [...document.querySelectorAll(".splitUser:checked")]
+        .map(cb => {
+
             const ratioText =
-              cb.parentElement.querySelector(".ratioInput").value;
+                cb.parentElement.querySelector(".ratioInput").value;
+
             return {
                 name: cb.value,
                 ratio: parseRatio(ratioText)
             };
         });
 
-    if(!whoPaidVal || isNaN(amt) || !reasonVal || selected.length===0) return;
+    if(
+        !whoPaidVal ||
+        isNaN(amt) ||
+        !reasonVal ||
+        selected.length === 0
+    ){
+        return;
+    }
 
     expenses.push({
         whoPaid: whoPaidVal,
@@ -204,9 +326,16 @@ function addExpense(){
         splitBetween: selected
     });
 
-    amountInput.value="";
-    reasonInput.value="";
+    amountInput.value = "";
+    reasonInput.value = "";
+
     updateExpensesTable();
+
+    // Clear the current split selections
+    document.querySelectorAll(".splitUser").forEach(cb => {
+        cb.checked = false;
+        cb.parentElement.querySelector(".ratioInput").value = "";
+    });
 }
 
 
@@ -215,30 +344,207 @@ function addExpense(){
 function updateExpensesTable(){
 
     expensesTable.innerHTML = `
-    <tr>
-    <th>Who Paid</th>
-    <th>Amount</th>
-    <th>Reason</th>
-    <th>Split Between</th>
-    <th>Action</th>
-    </tr>
+        <tr>
+            <th>Who Paid</th>
+            <th>Amount</th>
+            <th>Reason</th>
+            <th>Split Between</th>
+            <th>Action</th>
+        </tr>
     `;
 
-    expenses.forEach((e,i)=>{
+    expenses.forEach((e,i) => {
+
         expensesTable.innerHTML += `
-        <tr>
-          <td>${e.whoPaid}</td>
-          <td>₹${e.amount.toFixed(2)}</td>
-          <td>${e.reason}</td>
-          <td>${e.splitBetween.map(p=>`${p.name} (${p.ratio.toFixed(2)})`).join(", ")}</td>
-          <td><button onclick="removeExpense(${i})">Remove</button></td>
-        </tr>`;
+            <tr>
+                <td>${escapeHtml(e.whoPaid)}</td>
+
+                <td>₹${Number(e.amount).toFixed(2)}</td>
+
+                <td>${escapeHtml(e.reason)}</td>
+
+                <td>
+                    ${e.splitBetween
+                        .map(p =>
+                            `${escapeHtml(p.name)}
+                            (${Number(p.ratio).toFixed(2)})`
+                        )
+                        .join(", ")
+                    }
+                </td>
+
+                <td>
+                    <button onclick="removeExpense(${i})">
+                        Remove
+                    </button>
+                </td>
+            </tr>
+        `;
     });
 }
 
+
 function removeExpense(i){
+
     expenses.splice(i,1);
+
     updateExpensesTable();
+}
+
+
+/* -------- SAVE DATA -------- */
+
+function saveData(){
+
+    // Save the complete current state of the page
+    const data = {
+        users: users,
+        expenses: expenses,
+
+        currentForm: {
+            username: usernameInput.value,
+            whoPaid: whoPaidSelect.value,
+            amount: amountInput.value,
+            reason: reasonInput.value,
+
+            splitBetween: [
+                ...document.querySelectorAll(".split-row")
+            ].map(row => ({
+                name: row.querySelector(".splitUser").value,
+                checked: row.querySelector(".splitUser").checked,
+                ratio: row.querySelector(".ratioInput").value
+            }))
+        }
+    };
+
+    localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(data)
+    );
+
+    saveStatus.innerHTML =
+        "✓ Saved successfully";
+
+    setTimeout(() => {
+        saveStatus.innerHTML = "";
+    }, 2000);
+}
+
+
+/* -------- LOAD DATA -------- */
+
+function loadData(){
+
+    const savedData =
+        localStorage.getItem(STORAGE_KEY);
+
+    if(!savedData) return;
+
+    try {
+
+        const data = JSON.parse(savedData);
+
+        users = Array.isArray(data.users)
+            ? data.users
+            : [];
+
+        expenses = Array.isArray(data.expenses)
+            ? data.expenses
+            : [];
+
+        updateUsersTable();
+        updateSelectOptions();
+        updateExpensesTable();
+
+        // Restore the form
+        if(data.currentForm){
+
+            usernameInput.value =
+                data.currentForm.username || "";
+
+            amountInput.value =
+                data.currentForm.amount || "";
+
+            reasonInput.value =
+                data.currentForm.reason || "";
+
+            if(
+                data.currentForm.whoPaid &&
+                users.includes(data.currentForm.whoPaid)
+            ){
+                whoPaidSelect.value =
+                    data.currentForm.whoPaid;
+            }
+
+            if(Array.isArray(data.currentForm.splitBetween)){
+
+                data.currentForm.splitBetween.forEach(savedUser => {
+
+                    const checkbox =
+                        [...document.querySelectorAll(".splitUser")]
+                        .find(cb => cb.value === savedUser.name);
+
+                    if(!checkbox) return;
+
+                    checkbox.checked =
+                        savedUser.checked;
+
+                    checkbox.parentElement
+                        .querySelector(".ratioInput")
+                        .value =
+                        savedUser.ratio || "";
+                });
+            }
+        }
+
+    } catch(error){
+
+        console.error(
+            "Could not load saved data:",
+            error
+        );
+
+        localStorage.removeItem(STORAGE_KEY);
+    }
+}
+
+
+/* -------- CLEAR DATA -------- */
+
+function clearData(){
+
+    const confirmed =
+        confirm(
+            "Are you sure you want to clear all users, expenses, and saved data?"
+        );
+
+    if(!confirmed) return;
+
+    // Remove saved data
+    localStorage.removeItem(STORAGE_KEY);
+
+    // Reset application state
+    users = [];
+    expenses = [];
+
+    // Reset inputs
+    usernameInput.value = "";
+    amountInput.value = "";
+    reasonInput.value = "";
+
+    // Reset UI
+    updateUsersTable();
+    updateSelectOptions();
+    updateExpensesTable();
+
+    settlementsDiv.innerHTML = "";
+
+    saveStatus.innerHTML =
+        "✓ All data cleared";
+
+    setTimeout(() => {
+        saveStatus.innerHTML = "";
+    }, 2000);
 }
 
 
@@ -247,48 +553,101 @@ function removeExpense(i){
 function calculateSettlements(){
 
     const balances = {};
-    users.forEach(u=>balances[u]=0);
 
-    expenses.forEach(e=>{
+    users.forEach(u => balances[u] = 0);
+
+    expenses.forEach(e => {
+
         const totalRatio =
-            e.splitBetween.reduce((s,p)=>s+p.ratio,0);
+            e.splitBetween.reduce(
+                (s,p) => s + p.ratio,
+                0
+            );
 
-        e.splitBetween.forEach(p=>{
-            const share = e.amount * (p.ratio / totalRatio);
+        e.splitBetween.forEach(p => {
+
+            const share =
+                e.amount * (p.ratio / totalRatio);
+
             if(p.name !== e.whoPaid){
+
                 balances[p.name] -= share;
                 balances[e.whoPaid] += share;
             }
         });
     });
 
-    const debtors = Object.keys(balances).filter(u=>balances[u]<0);
-    const creditors = Object.keys(balances).filter(u=>balances[u]>0);
+    const debtors =
+        Object.keys(balances)
+            .filter(u => balances[u] < 0);
 
-    let html = `<table>
-    <tr><th>Debtor</th><th>Creditor</th><th>Amount</th></tr>`;
+    const creditors =
+        Object.keys(balances)
+            .filter(u => balances[u] > 0);
 
-    debtors.forEach(d=>{
-        creditors.forEach(c=>{
-            if(balances[d]<0 && balances[c]>0){
-                const amt = Math.min(-balances[d], balances[c]);
-                if(amt>0){
-                    html+=`
-                    <tr>
-                      <td>${d}</td>
-                      <td>${c}</td>
-                      <td>₹${amt.toFixed(2)}</td>
-                    </tr>`;
-                    balances[d]+=amt;
-                    balances[c]-=amt;
+    let html = `
+        <table>
+            <tr>
+                <th>Debtor</th>
+                <th>Creditor</th>
+                <th>Amount</th>
+            </tr>
+    `;
+
+    debtors.forEach(d => {
+
+        creditors.forEach(c => {
+
+            if(
+                balances[d] < 0 &&
+                balances[c] > 0
+            ){
+
+                const amt =
+                    Math.min(
+                        -balances[d],
+                        balances[c]
+                    );
+
+                if(amt > 0){
+
+                    html += `
+                        <tr>
+                            <td>${escapeHtml(d)}</td>
+                            <td>${escapeHtml(c)}</td>
+                            <td>₹${amt.toFixed(2)}</td>
+                        </tr>
+                    `;
+
+                    balances[d] += amt;
+                    balances[c] -= amt;
                 }
             }
         });
     });
 
-    html+="</table>";
+    html += "</table>";
+
     settlementsDiv.innerHTML = html;
 }
+
+
+/* -------- HTML ESCAPING -------- */
+
+function escapeHtml(value){
+
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+
+/* -------- INITIALIZE -------- */
+
+loadData();
 
 </script>
 
